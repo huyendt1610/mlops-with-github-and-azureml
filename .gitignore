@@ -1,0 +1,55 @@
+# Azure ML credentials & config
+config.json
+.azureml/
+
+# MLflow
+mlruns/
+mlartifacts/
+mlflow.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+notebooks/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Data files
+*.csv
+*.parquet
+*.json.bak
+
+# Office temp files
+~$*
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs & output
+*.log
+outputs/
+logs/
+
+# Model artifacts
+*.pkl
+*.joblib
+*.pt
+*.pth
+*.onnx
