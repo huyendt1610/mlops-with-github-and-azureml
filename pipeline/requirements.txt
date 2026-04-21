@@ -1,0 +1,7 @@
+pandas
+numpy 
+setuptools
+mflow
+azureml-mlflow
+azure-ai-ml
+azure-identity

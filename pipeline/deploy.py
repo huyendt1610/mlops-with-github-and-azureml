@@ -89,7 +89,7 @@ except Exception:
         name=env_name,
         description=env_name,
         tags={"scikit-learn": "1.7.2"},
-        conda_file="pipelines/environment/conda.yaml",
+        conda_file="pipeline/environment/conda.yaml",
         image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest"
     )  
     client.environments.create_or_update(environment)
@@ -111,7 +111,7 @@ except Exception:
         compute=cluster_name,
         endpoint_name=endpoint.name,
         model=model, 
-        code_configuration=CodeConfiguration(code="pipelines/scripts", scoring_script="score_model.py"),
+        code_configuration=CodeConfiguration(code="pipeline/scripts", scoring_script="score_model.py"),
         settings=ModelBatchDeploymentSettings(
             instance_count=2, 
             max_concurrency_per_instance=2,
@@ -131,7 +131,7 @@ except Exception:
     print("Updated default deployment to the endpoint")
 
 
-data_path="pipelines/data/predict"
+data_path="pipeline/data/predict"
 dataset_name = "ticket-unlabeled"
 try:
     predict_data = client.data.get(name=dataset_name, label="latest")
@@ -159,10 +159,10 @@ job = client.batch_endpoints.invoke( # create job
     }
 )
 
-client.jobs.stream(job.name)
+# client.jobs.stream(job.name)
 
-client.jobs.download(
-    name=job.name, 
-    download_path="outputs/score-predict",
-    output_name="score"
-)
+# client.jobs.download(
+#     name=job.name, 
+#     download_path="outputs/score-predict",
+#     output_name="score"
+# )

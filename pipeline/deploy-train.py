@@ -43,7 +43,7 @@ except Exception as ex:
     print(f"AmlCompute with name {cluster_name} will be created")
     cpu_cluster = ml_client.compute.begin_create_or_update(cpu_cluster)
 
-parent_dir = "./pipelines/config"
+parent_dir = "./pipeline/config"
 
 # the 3 first steps can be grouped into one 
 replace_missing_values=load_component(source=os.path.join(parent_dir, "feature-replace-missing-values.yml"))

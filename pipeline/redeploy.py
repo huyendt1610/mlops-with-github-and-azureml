@@ -10,7 +10,7 @@ def buildEnv():
         name=env_name,
         description=env_name,
         tags={"scikit-learn": "1.7.2"},
-        conda_file="pipelines/environment/conda.yaml",
+        conda_file="pipeline/environment/conda.yaml",
         image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest"
     )  
     client.environments.create_or_update(environment)
