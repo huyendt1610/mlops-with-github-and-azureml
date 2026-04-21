@@ -21,6 +21,9 @@ def buildEnv():
 def buildDeployment():
     pass 
 
+def buildModel():
+    pass 
+
 def main():
     buildEnv()
 
