@@ -6,3 +6,5 @@ azureml-mlflow
 azure-ai-ml
 azure-identity
 mltable
+dvc
+dvc-azure
