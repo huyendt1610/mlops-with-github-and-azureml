@@ -53,7 +53,6 @@ split_data=load_component(source=os.path.join(parent_dir, "split-data.yml"))
 train_model=load_component(source=os.path.join(parent_dir, "train-model.yml"))
 register_model=load_component(source=os.path.join(parent_dir,"register-model.yml"))
 
-
 @pipeline(name="training_pipeline",description="Build a training pipeline")
 def build_pipeline(raw_data):
     # outputs is configed in yml => AML will create if it is not set properly
@@ -75,7 +74,8 @@ def build_pipeline(raw_data):
                                  n_estimators=100
                                 )
 
-    register_model(model=train_model_data.outputs.model_output, test_report=train_model_data.outputs.test_report)
+    register_model(model=train_model_data.outputs.model_output, 
+                   test_report=train_model_data.outputs.test_report)
     return {
         "model": train_model_data.outputs.model_output,
         "report": train_model_data.outputs.test_report
@@ -98,6 +98,7 @@ def prepare_pipeline_job(cluster_name):
 
 def main():
     prepared_job = prepare_pipeline_job(cluster_name)
-    ml_client.jobs.create_or_update(prepared_job, experiment_name="aml_pipeline")  
+    pipeline_run = ml_client.jobs.create_or_update(prepared_job, experiment_name="aml_pipeline")
+    ml_client.jobs.stream(pipeline_run.name)  # wait for AML to finish before workflow completes
 
 main()

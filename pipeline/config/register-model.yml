@@ -11,6 +11,6 @@ inputs:
 environment: azureml:aml-scikit-learn@latest
 code: ../scripts
 command: >-
-  python register_model.py 
-  --model ${{inputs.model}} 
+  python register_model.py
+  --model ${{inputs.model}}
   --test_report ${{inputs.test_report}}

@@ -9,8 +9,9 @@ from azure.ai.ml.entities import (
 from azure.ai.ml.constants import AssetTypes, BatchDeploymentOutputAction
 import mlflow
 import pandas as pd 
-import mltable
-
+from azure.core.exceptions import ResourceNotFoundError
+from pathlib import Path
+import scripts.utils
 
 cluster_name = "demo-cluster"
 
@@ -33,7 +34,7 @@ client = MLClient.from_config(DefaultAzureCredential())
 try: 
     cluster = client.compute.get(name=cluster_name)
     print(f"Cluster {cluster_name} exists. We'll use it!")
-except Exception:
+except ResourceNotFoundError:
     print(f"Cluster {cluster_name} does not exist. Creating the new cluster...")
     cluster = AmlCompute(
         name=cluster_name, 
@@ -44,14 +45,14 @@ except Exception:
         idle_time_before_scale_down=180,
         tier="Dedicated"
     )
-    cluster = client.compute.begin_create_or_update(cluster)
+    cluster = client.compute.begin_create_or_update(cluster).result() 
 
 # 2. endpoint 
 endpoint_name = "ticket-endpoint"
 try: 
     endpoint = client.batch_endpoints.get(name=endpoint_name)
     print(f"Endpoint {endpoint_name} exists. We'll use it") 
-except Exception: 
+except ResourceNotFoundError: 
     print(f"Creating a new endpoint: {endpoint_name}")
     endpoint = BatchEndpoint(
         name=endpoint_name, 
@@ -83,13 +84,15 @@ env_name = "aml-scikit-learn"
 try:
     environment= client.environments.get(name=env_name, label="latest")
     print(f"Environment {env_name} exists. We'll use it!") 
-except Exception:
+except ResourceNotFoundError:
     print(f"Creating environment named: {env_name}...")
+    conda_file_path = Path(__file__).parent/"scripts"/"conda.yaml"
+    scikit_version = scripts.utils.get_package_version(conda_file_path)
     environment= Environment(
         name=env_name,
         description=env_name,
-        tags={"scikit-learn": "1.7.2"},
-        conda_file="pipeline/environment/conda.yaml",
+        tags={"scikit-learn": scikit_version},
+        conda_file=conda_file_path,
         image="mcr.microsoft.com/azureml/openmpi4.1.0-ubuntu20.04:latest"
     )  
     client.environments.create_or_update(environment)
@@ -102,7 +105,7 @@ deploy_name ="cpt-batch-deployment"
 try:
     deployment = client.batch_deployments.get(endpoint_name=endpoint.name, name=deploy_name)
     print(f"You have the deployment named: {deploy_name}. We'll use it")
-except Exception:
+except ResourceNotFoundError:
     # environment=client.environments.get(name="AzureML-sklearn-1.0-ubuntu20.04-py38-cpu", version="33") 
     deployment = ModelBatchDeployment(
         name=deploy_name,
@@ -131,12 +134,12 @@ except Exception:
     print("Updated default deployment to the endpoint")
 
 
-data_path="pipeline/data/predict"
+data_path="pipeline/data/unlabeled"
 dataset_name = "ticket-unlabeled"
 try:
     predict_data = client.data.get(name=dataset_name, label="latest")
     print(f"You already have the dataset {dataset_name}. We'll use it!")
-except Exception:
+except ResourceNotFoundError:
     predict_data = Data(
         name=dataset_name,
         description="Data for ticket prediction",

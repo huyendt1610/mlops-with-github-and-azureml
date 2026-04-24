@@ -1,10 +1,7 @@
 pandas
 numpy 
 setuptools
-mflow
+mlflow
 azureml-mlflow
 azure-ai-ml
 azure-identity
-mltable
-dvc
-dvc-azure

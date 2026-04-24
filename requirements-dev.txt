@@ -1,0 +1,4 @@
+-r pipeline/requirements.txt 
+mltable # test only
+dvc
+dvc-azure

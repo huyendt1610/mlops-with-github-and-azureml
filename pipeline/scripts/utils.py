@@ -1,12 +1,13 @@
 import pandas as pd
 import os 
 import argparse
+import yaml
 
 def build_df_from_folder(folder_path):  
     # path = {
     #     'folder': folder_path
     # }
-    # tbl = mltable.from_delimited_files(paths=[path])
+    # tbl = mltable.from_delimited_files(paths=[path]) # heavier, and specified for AML ecosystem
     # df = tbl.to_pandas_dataframe()
     
     print(os.listdir(folder_path)) # for small file 
@@ -34,6 +35,20 @@ def parse_args_list(arr):
     print(" ".join(f"{k}={v}" for k, v in vars(args).items()))
 
     return args
+
+def get_package_version(conda_path, pkg_name="scikit-learn"):
+    with open(conda_path) as file:
+        conda = yaml.safe_load(file)
+
+    pip_block = next(
+        p["pip"] for p in conda["dependencies"] if isinstance(p, dict) and "pip" in p
+    )
+
+    return next(
+         (p.split("==")[1] for p in pip_block
+         if p.startswith(f"{pkg_name}==")),
+         None
+    ) 
 
 if __name__ == "__main__":
     arr = [

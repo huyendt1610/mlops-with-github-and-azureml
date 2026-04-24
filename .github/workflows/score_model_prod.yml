@@ -1,0 +1,64 @@
+name: PROD - Score Model
+
+permissions:
+  contents: read 
+  id-token: write
+
+on:
+  workflow_dispatch:
+    inputs: {}
+  workflow_run:
+    workflows: ["PROD - Train Model"]
+    types:
+      - completed
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    paths:
+      - pipeline/data/**
+      - pipeline/deploy-score.py
+      - .github/workflows/score_model_dev.yml
+jobs:
+  deploy_ml_training_pipeline:
+    name: DEV - Score Model to Azure ML
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: Production 
+    env:
+      RESOURCE_GROUP: my-rg
+      WORKSPACE_NAME: my-workspace
+    steps: 
+      - name: Repo checkout 
+        uses: actions/checkout@v3 
+      - name: Install az CLi 
+        run: | 
+          # Install the az CLI and ML extension 
+          curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+          az extension add --name ml -y
+          echo "Installed Azure CLI and ML extension"
+      - name: Azure login 
+        uses: azure/login@v1
+        with: 
+          client-id: ${{secrets.AZURE_CLIENT_ID}}
+          tenant-id: ${{secrets.AZURE_TENANT_ID}}
+          subscription-id: ${{secrets.AZURE_SUBSCRIPTION_ID}}
+          enable-AzPSSession: true 
+      - name: Install and prepare Python 
+        uses: actions/setup-python@v4
+        with: 
+          python-version: '3.10'
+      - name: Run AML pipeline 
+        run: |
+          cd pipeline/
+          echo "Installing dependecies"
+          python -m pip install -r requirements.txt 
+          echo "Creating config file"
+          mkdir .azureml
+          echo -e "{ \"subscription_id\": \"${{secrets.AZURE_SUBSCRIPTION_ID}}\", \"resource_group\": \"${{env.RESOURCE_GROUP}}\", \"workspace_name\": \"${{env.WORKSPACE_NAME}}\" } " > .azureml/config.json
+          echo "Running scoring pipeline"
+          # Run python file
+          python deploy-score.py 
+
+

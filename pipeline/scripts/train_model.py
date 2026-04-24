@@ -35,12 +35,11 @@ def main(args):
    params = {
        'max_leaf_nodes': args.max_leaf_nodes, 
        'min_samples_leaf': args.min_samples_leaf, 
-       'max_depth': 1, # args.max_depth, 
+       'max_depth': args.max_depth, 
        'learning_rate': args.learning_rate, 
-       'n_estimators': 1, #args.n_estimators, 
+       'n_estimators': args.n_estimators, 
        'validation_fraction': 0.1, 
-       'random_state': 11,
-       'subsample': 0.1 # only get 20% of data for each tree
+       'random_state': 11
    }
 
    model, results = train_model(params, X_train, X_test, y_train, y_test) 

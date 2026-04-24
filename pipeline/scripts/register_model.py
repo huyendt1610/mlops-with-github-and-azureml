@@ -21,10 +21,10 @@ with mlflow.start_run():
     with open(Path(args.test_report) / fname, 'r') as f:
         results = json.load(f)
 
-    # print('Saving models locally...')
-    # root_model_path="model"
-    # os.makedirs(root_model_path, exist_ok=True)
-    # mlflow.sklearn.save_model(model, root_model_path)
+    print('Saving models locally...')
+    root_model_path="registered_model"
+    os.makedirs(root_model_path, exist_ok=True)
+    mlflow.sklearn.save_model(model, root_model_path)
 
     print('Registering the model...')
     registered_model_name = "ChicagoParkingTickets_model"
@@ -32,9 +32,9 @@ with mlflow.start_run():
     mlflow.set_tags(results) # tags on the run 
     mlflow.sklearn.log_model(
         model,
-        tags=results,
         artifact_path="model",
-        registered_model_name=registered_model_name
+        registered_model_name=registered_model_name,
+        conda_env="conda.yaml"
     )
 
 print('Done!')
