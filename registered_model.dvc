@@ -1,0 +1,6 @@
+outs:
+- md5: f492874487ede7e62e7473a5864d2774.dir
+  size: 19177
+  nfiles: 5
+  hash: md5
+  path: registered_model

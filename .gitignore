@@ -54,3 +54,4 @@ logs/
 *.pth
 *.onnx
 registered_model/
+/registered_model

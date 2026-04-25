@@ -9,7 +9,7 @@ on:
     {}
   push:
     branches: [main]
-    paths: [app/**, Dockerfile]
+    paths: [app/**, Dockerfile, .github/workflows/build_push_app.yml]
   
 jobs:
   build-push:
@@ -34,6 +34,12 @@ jobs:
           login-server: ${{secrets.ACR_LOGIN_SERVER}}
           username: ${{secrets.ACR_USERNAME}}
           password: ${{secrets.ACR_PASSWORD}}
+      - name: Pull model from DVC
+        run: |
+          pip install dvc[azure]
+          dvc remote modify myremote account_name ${{secrets.AZURE_STORAGE_ACCOUNT}}
+          dvc remote modify myremote sas_token ${{secrets.AZURE_STORAGE_SAS_TOKEN}}
+          dvc pull registered_model.dvc 
       - name: Build app image
         run: |
           docker build -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}} \
