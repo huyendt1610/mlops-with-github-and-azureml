@@ -39,7 +39,8 @@ jobs:
           pip install dvc[azure]
           dvc remote modify myremote account_name ${{secrets.AZURE_STORAGE_ACCOUNT}}
           dvc remote modify myremote sas_token ${{secrets.AZURE_STORAGE_SAS_TOKEN}}
-          dvc pull registered_model.dvc 
+          dvc remote list --show-url
+          dvc pull registered_model.dvc -v
       - name: Build app image
         run: |
           docker build -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}} \
