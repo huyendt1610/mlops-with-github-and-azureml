@@ -1,0 +1,42 @@
+name: Build & Push Image to ACR 
+
+permissions:
+  contents: read
+  id-token: write
+
+on: 
+  workflow_dispatch:
+    {}
+  push:
+    branches: [main]
+    paths: [app/**, Dockerfile]
+  
+jobs:
+  build-push:
+    name: MAIN - push image to ACR
+    runs-on: ubuntu-latest
+    environment: Production 
+    steps:
+      - name: Repo Checkout 
+        uses: actions/checkout@v3
+      # - name: Login to azure 
+      #   uses: azure/login@v1
+      #   with: 
+      #     client-id: ${{secrets.AZURE_CLIENT_ID}}
+      #     tenant-id: ${{secrets.AZURE_TENANT_ID}}
+      #     subscription-id: ${{secrets.AZURE_SUBSCRIPTION_ID}}
+      #     enable-AzPSSession: true
+      # - name: Login to ACR 
+      #   run: az acr login --name ${{secrets.ACR_NAME}}
+      - name: Login to ACR
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{secrets.ACR_LOGIN_SERVER}}
+          username: ${{secrets.ACR_USERNAME}}
+          password: ${{secrets.ACR_PASSWORD}}
+      - name: Build app image
+        run: |
+          docker build -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}} \
+                       -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:latest .
+          docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}}
+          docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:latest
