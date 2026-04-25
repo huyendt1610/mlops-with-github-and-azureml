@@ -37,8 +37,8 @@ jobs:
       - name: Pull model from DVC
         run: |
           pip install dvc[azure]
-          dvc remote modify myremote account_name ${{secrets.AZURE_STORAGE_ACCOUNT}}
-          dvc remote modify myremote sas_token ${{secrets.AZURE_STORAGE_SAS_TOKEN}}
+          dvc remote modify myremote account_name "${{secrets.AZURE_STORAGE_ACCOUNT}}"
+          dvc remote modify myremote sas_token "${{secrets.AZURE_STORAGE_SAS_TOKEN}}"
           dvc remote list
           cat .dvc/config
           dvc pull registered_model.dvc -v
