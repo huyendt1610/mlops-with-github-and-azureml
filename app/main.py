@@ -27,9 +27,10 @@ model = mlflow.sklearn.load_model("registered_model")
 # model = mlflow.sklearn.load_model(model_uri="models:/ChicagoParkingTickets_model/latest")
 
 def log_prediction(input_df, predictions): 
+    # print(os.environ["AZURE_STORAGE_ACCOUNT"])
     blob_service = BlobServiceClient(
         account_url=f"https://{os.environ['AZURE_STORAGE_ACCOUNT']}.blob.core.windows.net",
-        credential=os.environ["AZURE_STORAGE_SAS_TOKEN_LOGS"]
+        credential=os.environ['AZURE_STORAGE_KEY']
     )
     container = blob_service.get_container_client("predictions-log")
 
@@ -56,7 +57,7 @@ async def predict(file: UploadFile = File(...)):
     df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
     # print(model)
     predictions = model.predict(df).tolist()
-    log_prediction(df, predictions)
+    log_prediction(df, predictions) 
     # print(predictions)
     probs = model.predict_proba(df) 
     # print(probs)
