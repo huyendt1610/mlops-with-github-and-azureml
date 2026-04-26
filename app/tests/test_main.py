@@ -14,8 +14,7 @@ def test_predict_wrong_format():
     assert response.status_code == 400 
 
 def test_predict_csv(): 
-    path = Path(__file__).parent / "sample.csv"
-    with open(path, "rb") as f: 
+    with open("sample.csv", "rb") as f: 
         response = client.post("/predict", files={"file": f})
     assert response.status_code == 200 
     assert "predictions" in response.json()
