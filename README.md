@@ -82,7 +82,7 @@ mlops-with-github-and-azureml/
 │       ├── train_model_prod.yml     # Trigger Azure ML training pipeline (prod)
 │       ├── score_model_dev.yml      # Run batch scoring (dev)
 │       ├── score_model_prod.yml     # Run batch scoring (prod)
-│       ├── build_push_app.yml       # Build & push Docker image to ACR
+│       ├── build_push_app.yml       # Build & push Docker image to ACR, Deploy to Container Apps
 │       └── monitor_drift.yml        # Weekly scheduled drift monitoring
 ├── app/
 │   ├── main.py                      # FastAPI app — /predict endpoint
@@ -229,7 +229,7 @@ Push changes to the `dev` branch (or trigger manually in the Actions tab). The w
 | 1 | `feature_replace_missing_values.py` | Fill missing values in `Police_District` with 0 |
 | 2 | `feature_engineering.py` | Extract year, time-of-day bins, plate origin, vehicle type |
 | 3 | `feature_selection.py` | Drop irrelevant columns |
-| 4 | `split_data.py` | 80/20 train/test split on first 100k records |
+| 4 | `split_data.py` | 80/20 train/test split |
 | 5 | `train_model.py` | Train Gradient Boosting Classifier; log metrics to MLflow |
 | 6 | `register_model.py` | Register model in Azure ML Model Registry with metric tags |
 
@@ -249,9 +249,10 @@ Each prediction request is logged (input data + predictions + timestamp) to the 
 ### Run locally
 
 ```bash
-dvc pull registered_model.dvc
 pip install -r app/requirements.txt
-AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_KEY=<...> uvicorn app.main:app --reload
+AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_ACCOUNT_KEY=<...> \
+AZURE_SUBSCRIPTION_ID=<...> AZURE_RESOURCE_GROUP=<...> AZURE_WORKSPACE_NAME=<...> \
+uvicorn app.main:app --reload
 ```
 
 ### Run with Docker
@@ -260,7 +261,10 @@ AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_KEY=<...> uvicorn app.main:app --reloa
 docker build -t chicagoticket-app .
 docker run -p 8000:8000 \
   -e AZURE_STORAGE_ACCOUNT=<...> \
-  -e AZURE_STORAGE_KEY=<...> \
+  -e AZURE_STORAGE_ACCOUNT_KEY=<...> \
+  -e AZURE_SUBSCRIPTION_ID=<...> \
+  -e AZURE_RESOURCE_GROUP=<...> \
+  -e AZURE_WORKSPACE_NAME=<...> \
   chicagoticket-app
 ```
 
@@ -291,7 +295,7 @@ The model hash is extracted automatically from `registered_model.dvc` during the
 
 ```bash
 pip install -r monitoring/requirements.txt
-AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_KEY=<...> python monitoring/drift_monitor.py
+AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_ACCOUNT_KEY=<...> python monitoring/drift_monitor.py
 ```
 
 ---
@@ -345,8 +349,11 @@ Secrets required (GitHub environment: `Production`):
 | `ACR_LOGIN_SERVER` | ACR login server (e.g. `myregistry.azurecr.io`) |
 | `ACR_USERNAME` | ACR username |
 | `ACR_PASSWORD` | ACR password |
-| `AZURE_STORAGE_ACCOUNT` | Storage account name (for DVC pull) |
-| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key |
+| `AZURE_STORAGE_ACCOUNT` | Storage account name (for DVC pull + app env) |
+| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key (for DVC pull, passed to Container App) |
+| `AZURE_CLIENT_ID` | Service principal client ID (for `az containerapp update`) |
+| `AZURE_TENANT_ID` | Azure Active Directory tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
 ---
 

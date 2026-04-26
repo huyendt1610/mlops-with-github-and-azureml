@@ -7,7 +7,7 @@ import json
 
 blob_service = BlobServiceClient(
     account_url=f"https://{os.environ['AZURE_STORAGE_ACCOUNT']}.blob.core.windows.net",
-    credential=os.environ["AZURE_STORAGE_KEY"]
+    credential=os.environ["AZURE_STORAGE_ACCOUNT_KEY"]
 )
 
 container = blob_service.get_container_client("predictions-log")

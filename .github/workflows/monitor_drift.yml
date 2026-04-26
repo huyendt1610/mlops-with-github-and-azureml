@@ -1,14 +1,14 @@
 name: Monitor Drift
 on:
   schedule: 
-    - cron: '0 0 * * 1' # mỗi thứ 2 
+    - cron: '0 0 * * 1' # mỗi thứ 2 [Mi H D m DayOfWeek] 
 jobs:
   run-monitor-drift:
     runs-on: ubuntu-latest 
     environment: Production 
     env:
       AZURE_STORAGE_ACCOUNT: ${{secrets.AZURE_STORAGE_ACCOUNT}}
-      AZURE_STORAGE_SAS_TOKEN_LOGS: ${{secrets.AZURE_STORAGE_SAS_TOKEN_LOGS}}
+      AZURE_STORAGE_ACCOUNT_KEY: ${{secrets.AZURE_STORAGE_ACCOUNT_KEY}}
     steps:
       - uses: actions/checkout@v3 
       - uses: actions/setup-python@v4
