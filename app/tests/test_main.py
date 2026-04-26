@@ -6,7 +6,8 @@ mock_model = MagicMock()
 mock_model.predict.return_value = [1, 0]
 mock_model.predict_proba.return_value = [[0.3, 0.7], [0.8, 0.2]]
 
-with patch("model.load_model", return_value=mock_model):
+with patch("model.load_model", return_value=mock_model), \
+     patch.dict("os.environ", {"API_KEY": "test-key"}):
     from main import app
 
 client = TestClient(app)
