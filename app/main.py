@@ -1,66 +1,48 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-import mlflow
+from fastapi import FastAPI, UploadFile, File, HTTPException, Security
+from fastapi.security import APIKeyHeader
 import pandas as pd 
 import io
 import os 
-from datetime import datetime, timezone
-import json 
 
-from azure.ai.ml import MLClient
-from azure.identity import DefaultAzureCredential, AzureCliCredential
-from azure.storage.blob import BlobServiceClient
+from logger import get_logger
+from storage import log_prediction
+from model import load_model
 
-app = FastAPI(
-    title="Chicago Ticket Payment Prediction"
-) 
-# load local
-model = mlflow.sklearn.load_model("registered_model")
+app = FastAPI(title="Chicago Ticket Payment Prediction") 
+model = load_model()
+logger = get_logger("app")
 
-# load from aml registry 
-# mlclient = MLClient(
-#     DefaultAzureCredential(),
-#     subscription_id=os.environ["AZURE_SUBSCRIPTION_ID"],
-#     resource_group_name=os.environ["AZURE_RESOURCE_GROUP"],
-#     workspace_name=os.environ["AZURE_WORKSPACE_NAME"]
-# ) 
-# mlflow.set_tracking_uri(mlclient.workspaces.get(mlclient.workspace_name).mlflow_tracking_uri)
-# model = mlflow.sklearn.load_model(model_uri="models:/ChicagoParkingTickets_model/latest")
-
-def log_prediction(input_df, predictions): 
-    # print(os.environ["AZURE_STORAGE_ACCOUNT"])
-    blob_service = BlobServiceClient(
-        account_url=f"https://{os.environ['AZURE_STORAGE_ACCOUNT']}.blob.core.windows.net",
-        credential=os.environ['AZURE_STORAGE_KEY']
-    )
-    container = blob_service.get_container_client("predictions-log")
-
-    log = {
-        "timestamp": datetime.now(timezone.utc).isoformat(), 
-        "input": input_df.to_dict(orient="records"),
-        "predictions": predictions
-    }
-
-    blob_name = f"{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}.json"
-    container.upload_blob(blob_name, json.dumps(log))
+API_KEY = os.environ["API_KEY"]
+api_key_header = APIKeyHeader(name="X-API-Key")
+def verify_api_key(key: str = Security(api_key_header)):
+    if key != API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API key")
 
 @app.get("/")
 def root():
     return {"status": "ok"}
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
+async def predict(file: UploadFile = File(...), _: str = Security(verify_api_key)):
     if not file.filename.endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are accepted")
     
     contents = await file.read() 
    
     df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
-    # print(model)
     predictions = model.predict(df).tolist()
-    log_prediction(df, predictions) 
-    # print(predictions)
     probs = model.predict_proba(df) 
-    # print(probs)
+
+    # for Data Drift
+    log_prediction(df, predictions) 
+
+    # for logging 
+    logger.info("prediction_made", extra={
+        "extra":{
+            "rows": len(predictions), 
+            "filename": file.filename
+        }
+    })
 
     return {
         "total_rows": len(predictions),
