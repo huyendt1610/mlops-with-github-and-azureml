@@ -56,6 +56,15 @@ jobs:
           dvc remote modify myremote account_name "${{secrets.AZURE_STORAGE_ACCOUNT}}"
           dvc remote modify myremote account_key "${{secrets.AZURE_STORAGE_ACCOUNT_KEY}}"
           dvc pull registered_model.dvc -v
+      - name: Get Model version from DVC
+        id: model_ver
+        run: |
+          MODEL_HASH=$(python -c "
+          import yaml
+          d = yaml.safe_load(open('registered_model.dvc'))
+          print(d['outs'][0]['md5'][:8])
+          ")
+          echo "hash=$MODEL_HASH" >> $GITHUB_OUTPUT
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
@@ -65,8 +74,10 @@ jobs:
       - name: Build app image
         run: |
           docker build -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}} \
+                       -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:model-${{steps.model_ver.outputs.hash}} \
                        -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:latest .
           docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}}
+          docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:model-${{steps.model_ver.outputs.hash}}
           docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:latest
       # - name: Deploy to Container Apps # need az login with sp
       #   run: |
@@ -74,7 +85,7 @@ jobs:
       #     --name ${{env.CONTAINER_APP_NAME}} \
       #     --resource-group ${{env.RESOURCE_GROUP}} \
       #     --image ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}} \
-      #     --set-env-vars AZURE_STORAGE_ACCOUNT=${{secrets.AZURE_STORAGE_ACCOUNT}} AZURE_STORAGE_SAS_TOKEN_LOGS=${{secrets.AZURE_STORAGE_SAS_TOKEN_LOGS}}
+      #     --set-env-vars AZURE_STORAGE_ACCOUNT=${{secrets.AZURE_STORAGE_ACCOUNT}} AZURE_STORAGE_KEY=${{secrets.AZURE_STORAGE_KEY}}
       # - name: Update Container apps # still need az login 
       #   uses: azure/container-apps-deploy-action@v1
       #   with: 

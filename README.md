@@ -1,6 +1,10 @@
 # MLOps with GitHub and Azure ML
 
-An end-to-end MLOps project demonstrating how to build, train, deploy, and manage a machine learning model using **Azure Machine Learning**, **GitHub Actions**, and **DVC**. The model predicts whether a Chicago parking ticket will be paid or remain outstanding.
+An end-to-end MLOps project demonstrating how to build, train, deploy, and monitor a machine learning model using **Azure Machine Learning**, **GitHub Actions**, and **DVC**. The model predicts the likelihood that a Chicago parking ticket will remain unpaid using a variety of ticket details as inputs.
+
+The label column is `PaymentIsOutstanding`:
+- **1** — the ticket is still outstanding; the city was never able to collect full payment and the person still owes money
+- **0** — the ticket has been resolved; either the person paid in full or a judge dismissed it in court, leaving the city with no outstanding debt for that ticket
 
 ---
 
@@ -9,18 +13,34 @@ An end-to-end MLOps project demonstrating how to build, train, deploy, and manag
 ```
 GitHub Actions (CI/CD)
        │
-       ▼
-Azure ML Pipeline
-  ├── Replace Missing Values
-  ├── Feature Engineering
-  ├── Feature Selection
-  ├── Split Data
-  ├── Train Model  ──► MLflow (metrics + model)
-  └── Register Model ──► Azure ML Model Registry
-                                │
-                                ▼
-                    Azure ML Batch Endpoint
-                    (ticket-endpoint)
+       ├──► Azure ML Pipeline
+       │      ├── Replace Missing Values
+       │      ├── Feature Engineering
+       │      ├── Feature Selection
+       │      ├── Split Data
+       │      ├── Train Model  ──► MLflow (metrics + model)
+       │      └── Register Model ──► Azure ML Model Registry
+       │                                      │
+       │                                      ▼
+       │                          Azure ML Batch Endpoint
+       │                          (ticket-endpoint)
+       │
+       └──► Build & Push Docker Image
+              │
+              ▼
+        Azure Container Registry (ACR)
+              │   tagged: :latest | :model-<hash> | :<git-sha>
+              ▼
+        Azure Container Apps
+        (FastAPI serving app)
+              │
+              ▼
+        Azure Blob Storage
+        (predictions-log container)
+              │
+              ▼
+        Drift Monitor (Evidently)
+        outputs/drift_report.html
 ```
 
 Data is versioned with **DVC** and stored on **Azure Data Lake Storage (ADLS)**.
@@ -39,6 +59,10 @@ Data is versioned with **DVC** and stored on **Azure Data Lake Storage (ADLS)**.
 | Data Versioning | DVC |
 | Data Storage | Azure Data Lake Storage |
 | Batch Inference | Azure ML Batch Endpoints |
+| Serving App | FastAPI + Uvicorn |
+| Containerisation | Docker + Azure Container Registry |
+| Deployment | Azure Container Apps |
+| Drift Monitoring | Evidently |
 | CI/CD | GitHub Actions |
 | Environment | Conda (managed by Azure ML) |
 
@@ -54,13 +78,22 @@ mlops-with-github-and-azureml/
 │   └── config                       # DVC remote storage config
 ├── .github/
 │   └── workflows/
-│       └── train_model_dev.yml      # CI/CD pipeline
-├── notebooks/
-│   ├── chicago_ticket.ipynb         # Data exploration
-│   ├── azureml-in-a-day.ipynb       # Azure ML concepts
-│   ├── mlflow_dagshub.ipynb         # MLflow experiment tracking
-│   ├── data_engineer.ipynb          # Data engineering
-│   └── check.ipynb                  # Validation
+│       ├── train_model_dev.yml      # Trigger Azure ML training pipeline (dev)
+│       ├── train_model_prod.yml     # Trigger Azure ML training pipeline (prod)
+│       ├── score_model_dev.yml      # Run batch scoring (dev)
+│       ├── score_model_prod.yml     # Run batch scoring (prod)
+│       ├── build_push_app.yml       # Build & push Docker image to ACR
+│       └── monitor_drift.yml        # Weekly scheduled drift monitoring
+├── app/
+│   ├── main.py                      # FastAPI app — /predict endpoint
+│   ├── requirements.txt
+│   ├── requirements-test.txt
+│   └── tests/
+│       ├── sample.csv               # Sample data for tests
+│       └── test_main.py
+├── monitoring/
+│   ├── drift_monitor.py             # Evidently data drift report
+│   └── requirements.txt
 ├── pipeline/
 │   ├── config/                      # Azure ML component YAML definitions
 │   │   ├── feature-engineering.yml
@@ -69,9 +102,8 @@ mlops-with-github-and-azureml/
 │   │   ├── register-model.yml
 │   │   ├── split-data.yml
 │   │   └── train-model.yml
-│   ├── environment/
-│   │   └── conda.yaml               # Python environment specification
 │   ├── scripts/                     # Pipeline step scripts
+│   │   ├── conda.yaml               # Python environment specification
 │   │   ├── feature_engineering.py
 │   │   ├── feature_replace_missing_values.py
 │   │   ├── feature_selection.py
@@ -79,12 +111,18 @@ mlops-with-github-and-azureml/
 │   │   ├── train_model.py
 │   │   ├── register_model.py
 │   │   ├── score_model.py
+│   │   ├── score_model_online.py
 │   │   └── utils.py
 │   ├── data.dvc                     # DVC-tracked data pointer (~128 MB)
 │   ├── deploy-train.py              # Launch training pipeline
 │   ├── deploy-score.py              # Deploy batch scoring endpoint
 │   ├── redeploy.py                  # Rebuild Azure ML environment
 │   └── requirements.txt
+├── outputs/
+│   └── drift_report.html            # Generated drift report (not tracked by git)
+├── Dockerfile                       # Container image for the serving app
+├── registered_model.dvc             # DVC-tracked model pointer
+├── requirements-dev.txt             # Dev dependencies
 └── setup/
     ├── credential_development.json
     └── credential_production.json
@@ -99,6 +137,8 @@ mlops-with-github-and-azureml/
 - An Azure subscription with:
   - An Azure ML Workspace
   - An Azure Data Lake Storage account (for DVC remote)
+  - An Azure Container Registry (for Docker images)
+  - An Azure Container Apps environment
 - A GitHub repository with the required secrets configured (see [CI/CD Setup](#cicd-setup))
 
 ---
@@ -176,7 +216,6 @@ This will:
 Push changes to the `dev` branch (or trigger manually in the Actions tab). The workflow fires automatically when any of these paths change:
 
 - `pipeline/config/**`
-- `pipeline/environment/**`
 - `pipeline/scripts/**`
 - `pipeline/deploy-train.py`
 - `pipeline/requirements.txt`
@@ -196,6 +235,67 @@ Push changes to the `dev` branch (or trigger manually in the Actions tab). The w
 
 ---
 
+## Serving App
+
+The FastAPI app in `app/main.py` exposes two endpoints:
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/` | GET | Health check |
+| `/predict` | POST | Accept a `.csv` file, return predictions + probabilities |
+
+Each prediction request is logged (input data + predictions + timestamp) to the `predictions-log` container in Azure Blob Storage for downstream drift monitoring.
+
+### Run locally
+
+```bash
+dvc pull registered_model.dvc
+pip install -r app/requirements.txt
+AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_KEY=<...> uvicorn app.main:app --reload
+```
+
+### Run with Docker
+
+```bash
+docker build -t chicagoticket-app .
+docker run -p 8000:8000 \
+  -e AZURE_STORAGE_ACCOUNT=<...> \
+  -e AZURE_STORAGE_KEY=<...> \
+  chicagoticket-app
+```
+
+---
+
+## Docker Image Versioning
+
+Each image pushed to ACR carries three tags to link the image to both the git commit and the model version:
+
+| Tag | Example | Meaning |
+|---|---|---|
+| `:<git-sha>` | `:c42284f` | Exact git commit |
+| `:model-<hash>` | `:model-f492874` | Model version from `registered_model.dvc` |
+| `:latest` | `:latest` | Most recent build |
+
+The model hash is extracted automatically from `registered_model.dvc` during the CI build — no manual versioning required.
+
+---
+
+## Drift Monitoring
+
+`monitoring/drift_monitor.py` compares live prediction data against the original training distribution using **Evidently**:
+
+1. Reads all logged prediction inputs from the `predictions-log` blob container
+2. Loads a 100k sample from the training CSV as reference data
+3. Aligns columns present in both datasets
+4. Runs a `DataDriftPreset` report and saves `outputs/drift_report.html`
+
+```bash
+pip install -r monitoring/requirements.txt
+AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_KEY=<...> python monitoring/drift_monitor.py
+```
+
+---
+
 ## Batch Scoring Deployment
 
 To deploy the trained model as a batch inference endpoint:
@@ -211,7 +311,7 @@ This creates the `ticket-endpoint` batch endpoint, deploys `ChicagoParkingTicket
 
 ## Rebuilding the Azure ML Environment
 
-If you update `pipeline/environment/conda.yaml`, rebuild the managed environment:
+If you update `pipeline/scripts/conda.yaml`, rebuild the managed environment:
 
 ```bash
 cd pipeline
@@ -222,9 +322,11 @@ python redeploy.py
 
 ## CI/CD Setup
 
-The workflow in [.github/workflows/train_model_dev.yml](.github/workflows/train_model_dev.yml) uses **OpenID Connect (OIDC)** for passwordless Azure authentication.
+### Workflow: `train_model_dev.yml`
 
-Add the following secrets to your GitHub repository under **Settings → Secrets → Actions** (in the `Development` environment):
+Triggers Azure ML training pipeline on changes to `pipeline/**`. Uses **OpenID Connect (OIDC)** for passwordless Azure authentication.
+
+Secrets required (GitHub environment: `Development`):
 
 | Secret | Description |
 |---|---|
@@ -232,7 +334,19 @@ Add the following secrets to your GitHub repository under **Settings → Secrets
 | `AZURE_TENANT_ID` | Azure Active Directory tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
-> The workflow also dynamically writes `.azureml/config.json` from these secrets, so no static workspace config needs to be stored in the repo.
+### Workflow: `build_push_app.yml`
+
+Triggers on changes to `app/**`, `Dockerfile`, or `registered_model.dvc`. Runs tests, then builds and pushes the Docker image to ACR.
+
+Secrets required (GitHub environment: `Production`):
+
+| Secret | Description |
+|---|---|
+| `ACR_LOGIN_SERVER` | ACR login server (e.g. `myregistry.azurecr.io`) |
+| `ACR_USERNAME` | ACR username |
+| `ACR_PASSWORD` | ACR password |
+| `AZURE_STORAGE_ACCOUNT` | Storage account name (for DVC pull) |
+| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key |
 
 ---
 
@@ -258,13 +372,8 @@ Data files (~128 MB across 3 CSV files) are tracked by DVC and stored in Azure B
 dvc pull
 ```
 
----
+### Dataset Source
 
-## Notebooks
-
-| Notebook | Purpose |
+| File | Description |
 |---|---|
-| `chicago_ticket.ipynb` | Initial data exploration and EDA |
-| `azureml-in-a-day.ipynb` | Azure ML SDK concepts walkthrough |
-| `mlflow_dagshub.ipynb` | MLflow experiment tracking demo |
-| `check.ipynb` | Validation and sanity checks |
+| `pipeline/data/raw/ChicagoParkingTickets.csv` | Example/sample data for local development and testing |

@@ -9,6 +9,7 @@ mlflow.db
 
 # Python
 __pycache__/
+.pytest_cache/
 *.py[cod]
 *.pyo
 *.pyd
@@ -55,3 +56,9 @@ logs/
 *.onnx
 registered_model/
 /registered_model
+
+# pipeline/data/raw — example data for model training/testing
+# pipeline/data/org — excluded (original large dataset)
+!pipeline/data/
+!pipeline/data/**
+pipeline/data/org/
