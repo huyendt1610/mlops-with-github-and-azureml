@@ -6,3 +6,4 @@ python-multipart
 azure-ai-ml
 azure-identity
 azureml-mlflow
+azure-storage-blob

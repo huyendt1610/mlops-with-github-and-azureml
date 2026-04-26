@@ -28,7 +28,7 @@ arguments = [
 args = utils.parse_args_list(arguments)
 df = utils.build_df_from_folder(args.input_data)
 
-df = df.head(100000)
+# df = df.head(100000)
 
 train_df, test_df = train_test_split(df, test_size=0.2, random_state=666)
 

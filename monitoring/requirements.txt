@@ -1,0 +1,3 @@
+evidently
+azure-storage-blob
+pandas
