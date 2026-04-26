@@ -1,10 +1,11 @@
 from fastapi.testclient import TestClient
 from unittest.mock import patch, MagicMock
 from pathlib import Path
+import numpy as np
 
 mock_model = MagicMock()
-mock_model.predict.return_value = [1, 0]
-mock_model.predict_proba.return_value = [[0.3, 0.7], [0.8, 0.2]]
+mock_model.predict.return_value = np.array([1, 0])
+mock_model.predict_proba.return_value = np.array([[0.3, 0.7], [0.8, 0.2]])
 
 with patch("model.load_model", return_value=mock_model), \
      patch.dict("os.environ", {"API_KEY": "test-key"}):
