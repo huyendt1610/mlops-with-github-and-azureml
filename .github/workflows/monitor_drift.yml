@@ -2,7 +2,6 @@ name: Monitor Drift
 on:
   schedule: 
     - cron: '0 0 * * 1' # mỗi thứ 2 
-	
 jobs:
   run-monitor-drift:
     runs-on: ubuntu-latest 
@@ -17,4 +16,3 @@ jobs:
           python-version: '3.10'
       - run: pip install -r monitoring/requirements.txt 
       - run: python monitoring/drift_monitor.py
-	
