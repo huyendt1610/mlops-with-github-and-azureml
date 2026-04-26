@@ -1,7 +1,13 @@
 from fastapi.testclient import TestClient
-from unittest.mock import patch
-from main import app
+from unittest.mock import patch, MagicMock
 from pathlib import Path
+
+mock_model = MagicMock() 
+mock_model.predict.return_value = [1, 0]
+mock_model.predict_proba.return_value = [[0.3, 0.7],[0.8, 0.2]]
+
+with patch("model.MLClient"), patch("model.mlflow", return_value=mock_model):
+    from main import app
 
 client = TestClient(app)
 

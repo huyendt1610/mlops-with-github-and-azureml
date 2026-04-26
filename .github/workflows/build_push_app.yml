@@ -9,7 +9,7 @@ on:
     {}
   push:
     branches: [main]
-    paths: [app/**, Dockerfile, registered_model.dvc]
+    paths: [app/**, Dockerfile]
   
 jobs:
   tests:
@@ -21,11 +21,11 @@ jobs:
       - uses: actions/setup-python@v4
         with: 
           python-version: '3.10'
-      - run: |
-          pip install dvc[azure]
-          dvc remote modify myremote account_name "${{secrets.AZURE_STORAGE_ACCOUNT}}"
-          dvc remote modify myremote account_key "${{secrets.AZURE_STORAGE_ACCOUNT_KEY}}"
-          dvc pull registered_model.dvc
+      # - run: |
+      #     pip install dvc[azure]
+      #     dvc remote modify myremote account_name "${{secrets.AZURE_STORAGE_ACCOUNT}}"
+      #     dvc remote modify myremote account_key "${{secrets.AZURE_STORAGE_ACCOUNT_KEY}}"
+      #     dvc pull registered_model.dvc
       - run: |
           pip install -r app/requirements.txt -r app/requirements-test.txt 
           PYTHONPATH=app python -m pytest app/tests/
@@ -52,21 +52,31 @@ jobs:
           enable-AzPSSession: true
       - name: Login to ACR 
         run: az acr login --name ${{secrets.ACR_NAME}}
-      - name: Pull model from DVC
-        run: |
-          pip install dvc[azure]
-          dvc remote modify myremote account_name "${{secrets.AZURE_STORAGE_ACCOUNT}}"
-          dvc remote modify myremote account_key "${{secrets.AZURE_STORAGE_ACCOUNT_KEY}}"
-          dvc pull registered_model.dvc -v
-      - name: Get Model version from DVC
+      # - name: Pull model from DVC
+      #   run: |
+      #     pip install dvc[azure]
+      #     dvc remote modify myremote account_name "${{secrets.AZURE_STORAGE_ACCOUNT}}"
+      #     dvc remote modify myremote account_key "${{secrets.AZURE_STORAGE_ACCOUNT_KEY}}"
+      #     dvc pull registered_model.dvc -v
+      # - name: Get Model version from DVC
+      #   id: model_ver
+      #   run: |
+      #     MODEL_HASH=$(python -c "
+      #     import yaml
+      #     d = yaml.safe_load(open('registered_model.dvc'))
+      #     print(d['outs'][0]['md5'][:8])
+      #     ")
+      #     echo "hash=$MODEL_HASH" >> $GITHUB_OUTPUT
+      - name: Get model version from AML
         id: model_ver
         run: |
-          MODEL_HASH=$(python -c "
-          import yaml
-          d = yaml.safe_load(open('registered_model.dvc'))
-          print(d['outs'][0]['md5'][:8])
-          ")
-          echo "hash=$MODEL_HASH" >> $GITHUB_OUTPUT
+          VERSION=$(az ml model show \
+            --name ChicagoParkingTickets_model \
+            --label latest \
+            --workspace-name ${{env.AML_WORKSPACE_NAME}} \
+            --resource-group ${{env.AML_RESOURCE_GROUP}} \
+            --query version -o tsv)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
       - name: Login to ACR
         uses: azure/docker-login@v1
         with:
@@ -76,10 +86,10 @@ jobs:
       - name: Build app image
         run: |
           docker build -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}} \
-                       -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:model-${{steps.model_ver.outputs.hash}} \
+                       -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:model-v${{steps.model_ver.outputs.version}} \
                        -t ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:latest .
           docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:${{github.sha}}
-          docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:model-${{steps.model_ver.outputs.hash}}
+          docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:model-v${{steps.model_ver.outputs.version}}
           docker push ${{secrets.ACR_LOGIN_SERVER}}/chicagoticket-app:latest
       - name: Deploy to Container Apps # need az login with sp
         run: |
