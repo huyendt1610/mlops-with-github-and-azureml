@@ -11,6 +11,7 @@ with patch("model.load_model", return_value=mock_model), \
     from main import app
 
 client = TestClient(app)
+AUTH = {"X-API-Key": "test-key"}
 
 def test_root():
     response = client.get("/")
@@ -18,12 +19,12 @@ def test_root():
     assert response.json() == {"status": "ok"}
 
 def test_predict_wrong_format():
-    response = client.post("/predict", files={"file": ("text.txt", b"data", "text/plain")})
+    response = client.post("/predict", headers=AUTH, files={"file": ("text.txt", b"data", "text/plain")})
     assert response.status_code == 400
 
 def test_predict_csv():
     path = Path(__file__).parent / "sample.csv"
     with patch("main.log_prediction"), open(path, "rb") as f:
-        response = client.post("/predict", files={"file": f})
+        response = client.post("/predict", headers=AUTH, files={"file": f})
     assert response.status_code == 200
     assert "predictions" in response.json()
