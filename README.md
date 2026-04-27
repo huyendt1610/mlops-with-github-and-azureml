@@ -85,7 +85,12 @@ mlops-with-github-and-azureml/
 │       ├── build_push_app.yml       # Build & push Docker image to ACR, Deploy to Container Apps
 │       └── monitor_drift.yml        # Weekly scheduled drift monitoring
 ├── app/
-│   ├── main.py                      # FastAPI app — /predict endpoint
+│   ├── main.py                      # FastAPI app — routes only
+│   ├── model.py                     # Model loading from AML registry
+│   ├── storage.py                   # Azure Blob Storage — prediction logging
+│   ├── logger.py                    # Structured JSON logging
+│   ├── auth.py                      # JWT authentication (optional)
+│   ├── config.py                    # App configuration
 │   ├── requirements.txt
 │   ├── requirements-test.txt
 │   └── tests/
@@ -239,12 +244,20 @@ Push changes to the `dev` branch (or trigger manually in the Actions tab). The w
 
 The FastAPI app in `app/main.py` exposes two endpoints:
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | GET | Health check |
-| `/predict` | POST | Accept a `.csv` file, return predictions + probabilities |
+| Endpoint | Method | Auth | Description |
+|---|---|---|---|
+| `/` | GET | None | Health check |
+| `/predict` | POST | API Key | Accept a `.csv` file, return predictions + probabilities |
 
-Each prediction request is logged (input data + predictions + timestamp) to the `predictions-log` container in Azure Blob Storage for downstream drift monitoring.
+**Authentication:** all requests to `/predict` require an `X-API-Key` header:
+
+```bash
+curl -X POST https://your-app/predict \
+  -H "X-API-Key: <your-api-key>" \
+  -F "file=@data.csv"
+```
+
+Each prediction request is logged (input data + predictions + timestamp) to the `predictions-log` container in Azure Blob Storage for downstream drift monitoring. Structured JSON logs are written to stdout and collected by Azure Monitor.
 
 ### Run locally
 
@@ -252,6 +265,7 @@ Each prediction request is logged (input data + predictions + timestamp) to the 
 pip install -r app/requirements.txt
 AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_ACCOUNT_KEY=<...> \
 AZURE_SUBSCRIPTION_ID=<...> AZURE_RESOURCE_GROUP=<...> AZURE_WORKSPACE_NAME=<...> \
+API_KEY=<...> \
 uvicorn app.main:app --reload
 ```
 
@@ -265,6 +279,7 @@ docker run -p 8000:8000 \
   -e AZURE_SUBSCRIPTION_ID=<...> \
   -e AZURE_RESOURCE_GROUP=<...> \
   -e AZURE_WORKSPACE_NAME=<...> \
+  -e API_KEY=<...> \
   chicagoticket-app
 ```
 
@@ -277,10 +292,10 @@ Each image pushed to ACR carries three tags to link the image to both the git co
 | Tag | Example | Meaning |
 |---|---|---|
 | `:<git-sha>` | `:c42284f` | Exact git commit |
-| `:model-<hash>` | `:model-f492874` | Model version from `registered_model.dvc` |
+| `:model-v<version>` | `:model-v5` | Model version from AML registry |
 | `:latest` | `:latest` | Most recent build |
 
-The model hash is extracted automatically from `registered_model.dvc` during the CI build — no manual versioning required.
+The model version is queried automatically from AML registry (`az ml model show --label latest`) during the CI build — no manual versioning required.
 
 ---
 
@@ -340,7 +355,7 @@ Secrets required (GitHub environment: `Development`):
 
 ### Workflow: `build_push_app.yml`
 
-Triggers on changes to `app/**`, `Dockerfile`, or `registered_model.dvc`. Runs tests, then builds and pushes the Docker image to ACR.
+Triggers on changes to `app/**` or `Dockerfile`. Runs tests, builds and pushes the Docker image to ACR, then deploys to Azure Container Apps.
 
 Secrets required (GitHub environment: `Production`):
 
@@ -349,11 +364,13 @@ Secrets required (GitHub environment: `Production`):
 | `ACR_LOGIN_SERVER` | ACR login server (e.g. `myregistry.azurecr.io`) |
 | `ACR_USERNAME` | ACR username |
 | `ACR_PASSWORD` | ACR password |
-| `AZURE_STORAGE_ACCOUNT` | Storage account name (for DVC pull + app env) |
-| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key (for DVC pull, passed to Container App) |
-| `AZURE_CLIENT_ID` | Service principal client ID (for `az containerapp update`) |
+| `ACR_NAME` | ACR name |
+| `AZURE_CLIENT_ID` | Service principal client ID |
 | `AZURE_TENANT_ID` | Azure Active Directory tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| `AZURE_STORAGE_ACCOUNT` | Storage account name |
+| `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key |
+| `API_KEY` | API key for `/predict` endpoint authentication |
 
 ---
 

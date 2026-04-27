@@ -7,3 +7,4 @@ azure-ai-ml
 azure-identity
 azureml-mlflow
 azure-storage-blob
+python-jose[cryptography]
