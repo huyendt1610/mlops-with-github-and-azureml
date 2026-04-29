@@ -34,7 +34,7 @@ with mlflow.start_run():
         model,
         artifact_path="model",
         registered_model_name=registered_model_name,
-        conda_env="conda.yaml"
+        conda_env=str(Path(__file__).parent / "conda.yaml")
     )
 
 print('Done!')

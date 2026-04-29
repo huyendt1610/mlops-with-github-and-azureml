@@ -1,0 +1,21 @@
+schema: '2.0'
+stages:
+  register_model:
+    cmd: python pipeline/scripts/register_model.py --model 
+      pipeline/outputs/model_output --test_report 
+      pipeline/outputs/model_test_output
+    deps:
+    - path: pipeline/outputs/model_output
+      hash: md5
+      md5: 90acd80ea1d40a8e4bd13571536b0b50.dir
+      size: 19295
+      nfiles: 5
+    - path: pipeline/outputs/model_test_output
+      hash: md5
+      md5: 075dd2ffff26a93d18e7275f9102902c.dir
+      size: 113
+      nfiles: 1
+    - path: pipeline/scripts/register_model.py
+      hash: md5
+      md5: 622162a164c20405e8c13c6c5508387f
+      size: 1176

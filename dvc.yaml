@@ -1,0 +1,76 @@
+stages:
+  preprocess:
+    cmd: python pipeline/scripts/feature_replace_missing_values.py
+      --input_data pipeline/data/raw
+      --output_data pipeline/outputs/outputs
+    deps:
+      - pipeline/scripts/feature_replace_missing_values.py
+      - pipeline/data/raw/ChicagoParkingTickets.csv
+    outs:
+      - pipeline/outputs/outputs
+
+  feature_engineering:
+    cmd: python pipeline/scripts/feature_engineering.py
+      --input_data pipeline/outputs/outputs
+      --output_data pipeline/outputs/output2
+    deps:
+      - pipeline/scripts/feature_engineering.py
+      - pipeline/outputs/outputs
+    outs:
+      - pipeline/outputs/output2
+
+  feature_selection:
+    cmd: python pipeline/scripts/feature_selection.py
+      --input_data pipeline/outputs/output2
+      --output_data pipeline/outputs/output3
+    deps:
+      - pipeline/scripts/feature_selection.py
+      - pipeline/outputs/output2
+    outs:
+      - pipeline/outputs/output3
+
+  split_data:
+    cmd: python pipeline/scripts/split_data.py
+      --input_data pipeline/outputs/output3
+      --output_data_train pipeline/outputs/splited_data/output_data_train
+      --output_data_test pipeline/outputs/splited_data/output_data_test
+    deps:
+      - pipeline/scripts/split_data.py
+      - pipeline/outputs/output3
+    outs:
+      - pipeline/outputs/splited_data/output_data_train
+      - pipeline/outputs/splited_data/output_data_test
+
+  train:
+    cmd: python pipeline/scripts/train_model.py
+      --train_data pipeline/outputs/splited_data/output_data_train
+      --test_data pipeline/outputs/splited_data/output_data_test
+      --max_leaf_nodes ${train.max_leaf_nodes}
+      --min_samples_leaf ${train.min_samples_leaf}
+      --max_depth ${train.max_depth}
+      --learning_rate ${train.learning_rate}
+      --n_estimators ${train.n_estimators}
+      --model_output pipeline/outputs/model_output
+      --test_report pipeline/outputs/model_test_output
+    deps:
+      - pipeline/scripts/train_model.py
+      - pipeline/outputs/splited_data/output_data_train
+      - pipeline/outputs/splited_data/output_data_test
+    params:
+      - params.yaml:
+          - train
+    outs:
+      - pipeline/outputs/model_output
+      - pipeline/outputs/model_test_output
+    metrics:
+      - metrics.json:
+          cache: false
+
+  register_model: # need az login,, mlflow
+    cmd: python pipeline/scripts/register_model.py
+      --model pipeline/outputs/model_output
+      --test_report pipeline/outputs/model_test_output
+    deps:
+      - pipeline/scripts/register_model.py
+      - pipeline/outputs/model_output
+      - pipeline/outputs/model_test_output

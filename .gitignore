@@ -1,6 +1,8 @@
 # Azure ML credentials & config
 config.json
 .azureml/
+.env
+.env.local
 
 # MLflow
 mlruns/

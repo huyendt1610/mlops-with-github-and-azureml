@@ -1,0 +1,58 @@
+# pipeline/pipeline.yml
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+display_name: train_pipeline
+experiment_name: aml_pipeline
+
+settings:
+  default_compute: serverless
+  default_datastore: azureml:workspaceblobstore
+
+inputs:
+  raw_data:
+    type: uri_folder
+    path: azureml:ticket_folder@latest
+
+jobs:
+  replace_missing_values:
+    type: command
+    component: ./config/feature-replace-missing-values.yml
+    inputs:
+      input_data: ${{parent.inputs.raw_data}}
+
+  feature_engineering:
+    type: command
+    component: ./config/feature-engineering.yml
+    inputs:
+      input_data: ${{parent.jobs.replace_missing_values.outputs.output_data}}
+
+  feature_selection:
+    type: command
+    component: ./config/feature-selection.yml
+    inputs:
+      input_data: ${{parent.jobs.feature_engineering.outputs.output_data}}
+
+  split_data:
+    type: command
+    component: ./config/split-data.yml
+    inputs:
+      input_data: ${{parent.jobs.feature_selection.outputs.output_data}}
+
+  train_model:
+    type: command
+    component: ./config/train-model.yml
+    inputs:
+      train_data: ${{parent.jobs.split_data.outputs.output_data_train}}
+      test_data: ${{parent.jobs.split_data.outputs.output_data_test}}
+      max_leaf_nodes: 128
+      min_samples_leaf: 32
+      max_depth: 2
+      learning_rate: 0.1
+      n_estimators: 100
+
+  register_model:
+    type: command
+    component: ./config/register-model.yml
+    inputs:
+      model: ${{parent.jobs.train_model.outputs.model_output}}
+      test_report: ${{parent.jobs.train_model.outputs.test_report}}

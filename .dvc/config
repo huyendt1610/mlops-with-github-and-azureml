@@ -1,4 +1,4 @@
 [core]
-    remote = myremote
-['remote "myremote"']
+    remote = az-remote
+['remote "az-remote"']
     url = azure://video-demo/data
