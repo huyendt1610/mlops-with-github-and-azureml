@@ -1,0 +1,37 @@
+name: Deploy Infrastructure
+on:
+  workflow_dispatch:
+    inputs: {}
+  push:
+    branches: [main]
+    paths: [infra/**]
+
+jobs:
+  deploy-infra: 
+    name: Deploy infrastructure with terraform
+    runs-on: ubuntu-latest
+    environment: Production   
+    env:
+      AZURE_CLIENT_ID: ${{secrets.AZURE_CLIENT_ID}}
+      AZURE_TENANT_ID: ${{secrets.AZURE_TENANT_ID}}
+      AZURE_SUBSCRIPTION_ID: ${{secrets.AZURE_SUBSCRIPTION_ID}}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+      - name: Login to azure 
+        uses: azure/login@v1  
+        with: 
+          client-id: ${{secrets.AZURE_CLIENT_ID}}
+          tenant-id: ${{secrets.AZURE_TENANT_ID}}
+          subscription-id: ${{secrets.AZURE_SUBSCRIPTION_ID}}
+          enable-AzPSSession: true
+      - name: Setup terraform
+        uses: hashicorp/setup-terraform@v1  
+        with:
+          terraform_version: 1.0.0
+      - name: Terraform init
+        run: terraform init -backend-config="environments/prod.backend.tfvars" -reconfigure
+        working-directory: infra  
+      - name: Terraform apply
+        run: terraform apply -var-file="environments/prod.tfvars" -auto-approve
+        working-directory: infra

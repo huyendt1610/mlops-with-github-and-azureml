@@ -6,7 +6,7 @@ resource "random_string" "suffix" {
 }
 
 resource "azurerm_application_insights" "aml" {
-  name = "${var.aml_workspace_name}appinsights"
+  name = "${local.safe_aml_ws_name}appinsights"
   resource_group_name = azurerm_resource_group.aml.name
   location = azurerm_resource_group.aml.location
   application_type = "web"
@@ -18,6 +18,9 @@ resource "azurerm_key_vault" "aml" { # name must be globally unique
   location = azurerm_resource_group.aml.location
   tenant_id = data.azurerm_client_config.current.tenant_id
   sku_name = "standard"
+
+  purge_protection_enabled = true
+  soft_delete_retention_days = 7
 }
 
 resource "azurerm_storage_account" "aml" {
@@ -38,7 +41,7 @@ resource "azurerm_machine_learning_workspace" "main" {
   storage_account_id = azurerm_storage_account.aml.id           # mandatory
 
   container_registry_id = azurerm_container_registry.main.id # optional, but needed if you want to use Azure Container Registry to store your docker images for AzureML
-
+  
   identity {
     type = "SystemAssigned"
   }

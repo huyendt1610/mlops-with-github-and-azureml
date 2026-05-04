@@ -3,11 +3,12 @@ import os
 import json
 from datetime import datetime, timezone
 from azure.storage.blob import BlobServiceClient
+from azure.identity import DefaultAzureCredential
 
 def _get_container():
     blob_service = BlobServiceClient(
         account_url=f"https://{os.environ['AZURE_STORAGE_ACCOUNT']}.blob.core.windows.net",
-        credential=os.environ['AZURE_STORAGE_ACCOUNT_KEY']
+        credential= os.environ['AZURE_STORAGE_ACCOUNT_KEY']
     )
     return blob_service.get_container_client("predictions-log")
 

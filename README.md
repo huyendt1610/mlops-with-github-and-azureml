@@ -281,26 +281,25 @@ Each prediction request is logged (input data + predictions + timestamp) to the 
 
 ### Run locally
 
+Copy `.env.example` to `.env` and fill in the values, then:
+
 ```bash
 pip install -r app/requirements.txt
-AZURE_STORAGE_ACCOUNT=<...> AZURE_STORAGE_ACCOUNT_KEY=<...> \
-AZURE_SUBSCRIPTION_ID=<...> AZURE_RESOURCE_GROUP=<...> AZURE_WORKSPACE_NAME=<...> \
-API_KEY=<...> \
+export $(cat .env | xargs)
 uvicorn app.main:app --reload
 ```
 
 ### Run with Docker
 
+Copy `.env.example` to `.env` and fill in the values:
+
+```bash
+cp .env.example .env
+```
+
 ```bash
 docker build -t chicagoticket-app .
-docker run -p 8000:8000 \
-  -e AZURE_STORAGE_ACCOUNT=<...> \
-  -e AZURE_STORAGE_ACCOUNT_KEY=<...> \
-  -e AZURE_SUBSCRIPTION_ID=<...> \
-  -e AZURE_RESOURCE_GROUP=<...> \
-  -e AZURE_WORKSPACE_NAME=<...> \
-  -e API_KEY=<...> \
-  chicagoticket-app
+docker run -p 8000:8000 --env-file .env chicagoticket-app
 ```
 
 ---
@@ -450,6 +449,18 @@ Secrets required (GitHub environment: `Production`):
 | `AZURE_STORAGE_ACCOUNT` | Storage account name |
 | `AZURE_STORAGE_ACCOUNT_KEY` | Storage account key |
 | `API_KEY` | API key for `/predict` endpoint authentication |
+
+### Workflow: `deploy_infra.yml`
+
+Triggers on changes to `infra/**` or manually via `workflow_dispatch`. Runs `terraform init` + `terraform apply` for the dev environment.
+
+Secrets required (GitHub environment: `Production`):
+
+| Secret | Description |
+|---|---|
+| `AZURE_CLIENT_ID` | Service principal client ID |
+| `AZURE_TENANT_ID` | Azure Active Directory tenant ID |
+| `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 
 ---
 

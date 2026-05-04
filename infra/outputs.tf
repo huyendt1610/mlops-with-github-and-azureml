@@ -1,7 +1,7 @@
 # acr 
 output "acr_username" { 
   value = azurerm_container_registry.main.admin_username
-  sensitive = true
+  # sensitive = true
 }
 
 output "acr_password" { 
@@ -35,4 +35,14 @@ output "aml_workspace_name" {
 
 output "aml_resource_group" {
   value = azurerm_machine_learning_workspace.main.resource_group_name 
+}
+
+# container app 
+output "container_app_url" {
+  value = azurerm_container_app.main.latest_revision_fqdn
+  
+}
+
+output "container_login_server" {
+  value = azurerm_container_registry.main.login_server
 }
