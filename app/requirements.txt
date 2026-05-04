@@ -8,3 +8,4 @@ azure-identity
 azureml-mlflow
 azure-storage-blob
 python-jose[cryptography]
+prometheus-fastapi-instrumentator

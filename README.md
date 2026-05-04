@@ -64,6 +64,8 @@ Data is versioned with **DVC** and stored on **Azure Data Lake Storage (ADLS)**.
 | Deployment | Azure Container Apps |
 | Drift Monitoring | Evidently |
 | CI/CD | GitHub Actions |
+| Infrastructure as Code | Terraform |
+| Metrics | Prometheus + Grafana |
 | Environment | Conda (managed by Azure ML) |
 
 ---
@@ -125,6 +127,24 @@ mlops-with-github-and-azureml/
 │   └── requirements.txt
 ├── outputs/
 │   └── drift_report.html            # Generated drift report (not tracked by git)
+├── infra/
+│   ├── environments/
+│   │   ├── dev.tfvars               # Terraform variables for dev
+│   │   ├── prod.tfvars              # Terraform variables for prod
+│   │   ├── dev.backend.tfvars       # Terraform backend config for dev
+│   │   └── prod.backend.tfvars      # Terraform backend config for prod
+│   ├── main.tf                      # Resource groups
+│   ├── ml.tf                        # AML workspace + dependencies
+│   ├── storage.tf                   # Storage accounts + containers
+│   ├── container.tf                 # ACR + Container App
+│   ├── outputs.tf                   # Terraform outputs (ACR, AML, storage)
+│   ├── variables.tf
+│   ├── locals.tf
+│   ├── providers.tf                 # Azure provider + remote backend
+│   └── deploy.sh                    # Helper script: init + apply per environment
+├── prometheus/
+│   └── prometheus.yml               # Prometheus scrape config
+├── docker-compose.yaml              # Local stack: app + Prometheus + Grafana
 ├── Dockerfile                       # Container image for the serving app
 ├── registered_model.dvc             # DVC-tracked model pointer
 ├── requirements-dev.txt             # Dev dependencies
@@ -336,6 +356,65 @@ If you update `pipeline/scripts/conda.yaml`, rebuild the managed environment:
 cd pipeline
 python redeploy.py
 ```
+
+---
+
+## Infrastructure Setup (Terraform)
+
+All Azure resources are managed with Terraform in the `infra/` directory.
+
+### Prerequisites
+
+- [Terraform](https://developer.hashicorp.com/terraform/install) installed
+- Azure CLI authenticated (`az login`)
+- A storage account for Terraform remote state (created once manually):
+
+```bash
+az group create --name tfstate-rg --location norwayeast
+az storage account create --name tfstatedevticketstorage --resource-group tfstate-rg --sku Standard_LRS
+az storage container create --name tfstate --account-name tfstatedevticketstorage
+```
+
+### Deploy
+
+```bash
+cd infra
+./deploy.sh dev    # deploy dev environment
+./deploy.sh prod   # deploy prod environment
+```
+
+The script runs `terraform init` with the correct backend config then `terraform apply` with the matching tfvars.
+
+### Resources created
+
+| Resource | Purpose |
+|---|---|
+| Resource Group (`main`) | ACR, Container App, Storage |
+| Resource Group (`aml`) | AML Workspace + dependencies |
+| Azure Container Registry | Store Docker images |
+| Azure Container App | Serve the FastAPI model API |
+| Azure ML Workspace | Training, model registry |
+| Azure Storage Account | Prediction logs, app data |
+
+---
+
+## Local Monitoring (Prometheus + Grafana)
+
+Run the full local stack with Docker Compose:
+
+```bash
+docker compose up
+```
+
+| Service | URL |
+|---|---|
+| FastAPI app | http://localhost:8000 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 (admin/admin) |
+
+Prometheus scrapes `/metrics` from the app automatically. Custom metrics tracked:
+- `prediction_count` — number of predictions per label
+- `prediction_rows` — number of rows per request
 
 ---
 

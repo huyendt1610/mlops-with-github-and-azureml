@@ -7,7 +7,7 @@ RUN pip install -r requirements.txt
 
 COPY app/ .
 
-# COPY registered_model ./registered_model
+COPY registered_model ./registered_model
 RUN adduser --disabled-password --gecos "" appuser 
 USER appuser
 

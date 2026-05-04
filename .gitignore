@@ -64,3 +64,12 @@ registered_model/
 !pipeline/data/
 !pipeline/data/**
 pipeline/data/org/
+
+
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+*.secret.tfvars
+
+resource-list.txt

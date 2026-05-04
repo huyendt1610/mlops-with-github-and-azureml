@@ -1,0 +1,30 @@
+services:
+  app: 
+    build: . 
+    ports: 
+      - 8000:8000 
+    environment:
+      - API_KEY=${API_KEY}
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      - AZURE_STORAGE_ACCOUNT_KEY=${AZURE_STORAGE_ACCOUNT_KEY}
+      - AZURE_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}
+      - AZURE_RESOURCE_GROUP=${AZURE_RESOURCE_GROUP}
+      - AZURE_WORKSPACE_NAME=${AZURE_WORKSPACE_NAME}
+
+  prometheus: 
+    image: prom/prometheus:latest 
+    ports: 
+      - 9090:9090
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on: 
+      - app 
+    
+  grafana: 
+    image: grafana/grafana:latest 
+    ports:
+      - 3000:3000 
+    environment: 
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus 

@@ -1,0 +1,10 @@
+global: # apply for all prometheus 
+    scrape_interval: 15s # every scrape_interval call http://app:8000/metrics to get metrics
+rule_files: # Rules for aggregating metrics values or creating alerts when conditions met 
+  # - "first.rules" # alert rules file
+  # - "second.rules" # alert rules file
+scrape_configs: # config for each job 
+  - job_name: "chicago-ticket-app"
+    static_configs:  # app adress to scrape
+      - targets:
+          - "app:8000" # service name in docker-compose.yaml and port to scrape
